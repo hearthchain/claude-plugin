@@ -1,7 +1,7 @@
 {
   "name": "hearth",
-  "description": "Use a Hearth execution node from Claude Code: /hearth:install to wire this machine to a node, /hearth:models for the node's catalog, /hearth:status for node health and key budget",
-  "version": "0.1.1",
+  "description": "Use a Hearth execution node from Claude Code: /hearth:on to route this machine through a node, /hearth:off to switch back, /hearth:models for the node's catalog, /hearth:status for node health and key budget",
+  "version": "0.2.0",
   "author": {
     "name": "Hearth"
   }

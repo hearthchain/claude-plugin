@@ -7,7 +7,7 @@
     {
       "name": "hearth",
       "source": "./plugins/hearth",
-      "description": "Use a Hearth execution node from Claude Code: one-command install, model catalog, node status"
+      "description": "Use a Hearth execution node from Claude Code: /hearth:on and /hearth:off to switch the provider, model catalog, node status"
     }
   ]
 }
