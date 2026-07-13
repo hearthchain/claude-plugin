@@ -23,7 +23,7 @@ The command checks that the node answers on `/v1/models`, then asks you to place
 security add-generic-password -U -s hearth-node -a <node-host> -w '<your-virtual-key>'
 ```
 
-Once the key is present, re-run `/hearth:on <node-url>`. It installs an `apiKeyHelper` at `~/.hearth/apikey.sh` that reads the key back from the Keychain, then merges the provider env block (`ANTHROPIC_BASE_URL`, `ANTHROPIC_MODEL`, `ANTHROPIC_SMALL_FAST_MODEL`, gateway model discovery) into `~/.claude/settings.json`. Restart your Claude Code sessions afterwards, since the env is read at startup.
+Once the key is present, re-run `/hearth:on <node-url>`. When you do not name models on the command line, it reads the node's catalog and offers an interactive choice of the main model and the background model, each with a recommended default first, so you can just accept the defaults or pick from the list. It then installs an `apiKeyHelper` at `~/.hearth/apikey.sh` that reads the key back from the Keychain, and merges the provider env block (`ANTHROPIC_BASE_URL`, `ANTHROPIC_MODEL`, `ANTHROPIC_SMALL_FAST_MODEL`, gateway model discovery) into `~/.claude/settings.json`. Restart your Claude Code sessions afterwards, since the env is read at startup.
 
 After this, the machine's default `claude` routes through the Hearth node. To undo, run `/hearth:off`.
 
@@ -33,7 +33,7 @@ The first `/hearth:on` snapshots the prior values of the settings keys it manage
 
 | Command | What it does |
 |---------|--------------|
-| `/hearth:on [--session] [node-url] [main-model] [fast-model]` | Wire this machine to a node, or switch to a different node by passing its URL. With `--session`, only prepare per-session use. |
+| `/hearth:on [--session] [node-url] [main-model] [fast-model]` | Wire this machine to a node, or switch to a different node by passing its URL. When a key is already present and you name no models, it offers an interactive pick of the main and background model from the node's catalog. With `--session`, only prepare per-session use. |
 | `/hearth:off` | Switch back to the pre-Hearth setup from the snapshot. The Keychain key stays, so `/hearth:on` re-enables instantly. |
 | `/hearth:models` | List the node's model catalog. With gateway model discovery enabled the same catalog also appears in the `/model` picker, labeled "From gateway", after a session restart. |
 | `/hearth:status` | Report gateway health, the key's spend against its budget, the enclave identity pubkey, and whether the VM attestation endpoint is reachable. |

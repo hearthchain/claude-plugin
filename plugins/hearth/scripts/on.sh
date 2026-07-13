@@ -11,11 +11,19 @@
 # without changing the machine-wide setup. With --session, that file is ALL
 # it writes; ~/.claude/settings.json stays untouched.
 #
-# Usage: on.sh [--session] [node-url] [main-model] [fast-model]
+# With --catalog it changes nothing: it authenticates with the node's Keychain
+# key, fetches /v1/models, and prints STATE=CATALOG plus one MODEL= line per
+# concrete id (wildcard ids skipped), so the command can offer a model picker.
+#
+# Usage: on.sh [--session | --catalog] [node-url] [main-model] [fast-model]
 set -euo pipefail
 
 session_only=0
-if [ "${1:-}" = "--session" ]; then session_only=1; shift; fi
+catalog_only=0
+case "${1:-}" in
+  --session) session_only=1; shift ;;
+  --catalog) catalog_only=1; shift ;;
+esac
 
 url=${1:-https://moccasin-canidae.vm.scrtlabs.com}
 url=${url%/}
@@ -33,6 +41,31 @@ case "$code" in
   200|401) ;;
   *) echo "STATE=UNREACHABLE"; echo "HTTP=$code"; echo "URL=$url"; exit 0 ;;
 esac
+
+# Read-only catalog mode: same key lookup as apikey.sh (host account, then any
+# hearth-node item), fetch the caller-scoped model list, print concrete ids.
+# The key is used only as a bearer token; its value is never echoed.
+if [ "$catalog_only" = 1 ]; then
+  key=$(security find-generic-password -w -s hearth-node -a "$host" 2>/dev/null \
+        || security find-generic-password -w -s hearth-node 2>/dev/null || true)
+  if [ -z "$key" ]; then
+    echo "STATE=NO_KEY"
+    echo "HOST=$host"
+    echo "ADD_CMD=security add-generic-password -U -s hearth-node -a $host -w '<your-virtual-key>'"
+    echo "RERUN=/hearth:on $url"
+    exit 0
+  fi
+  body=$(curl -s --max-time 10 "$url/v1/models" -H "Authorization: Bearer $key" || true)
+  ids=$(printf '%s' "$body" | jq -r '.data[]?.id // empty' 2>/dev/null || true)
+  echo "STATE=CATALOG"
+  echo "URL=$url"
+  printf '%s\n' "$ids" | while IFS= read -r id; do
+    [ -z "$id" ] && continue
+    case "$id" in *"*"*) continue ;; esac
+    echo "MODEL=$id"
+  done
+  exit 0
+fi
 
 if ! security find-generic-password -s hearth-node -a "$host" >/dev/null 2>&1; then
   echo "STATE=NO_KEY"

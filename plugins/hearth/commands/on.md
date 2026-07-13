@@ -1,7 +1,7 @@
 ---
 description: Route Claude Code through a Hearth node, machine-wide or per session (Keychain key, apiKeyHelper, settings.json)
 argument-hint: "[--session] [node-url] [main-model] [fast-model]"
-allowed-tools: ["Bash"]
+allowed-tools: ["Bash", "AskUserQuestion"]
 ---
 
 Route Claude Code through a Hearth execution node as the model provider.
@@ -14,6 +14,13 @@ Two scopes:
 A running session cannot change its provider (the provider env is read at startup), so never promise that THIS session will switch; a new session or a restart is always required.
 
 Node URL: use `$ARGUMENTS` if given; default is `https://moccasin-canidae.vm.scrtlabs.com`. Any other Hearth miner works the same way, that is the point of the argument.
+
+Model picker: if the user did NOT pass `[main-model]` and `[fast-model]` arguments, offer an interactive choice before switching. First run `bash ${CLAUDE_PLUGIN_ROOT}/scripts/on.sh --catalog <node-url>` (this changes nothing on the machine; it only lists the node's models). If it prints `STATE=CATALOG` with two or more `MODEL=` lines, use AskUserQuestion twice, then continue with the chosen ids as the `[main-model] [fast-model]` arguments in the normal run below:
+
+- First question, the main model: offer at most four options. Put `nebius/moonshotai/Kimi-K2.7-Code` first, labeled "(Recommended)", then fill the remaining option slots with other catalog ids from the `MODEL=` lines. The built-in "Other" choice lets the user type any id, so mention that upstream ids matching a wildcard scope also work.
+- Second question, the fast/background model: same shape, but put `nebius/Qwen/Qwen3-30B-A3B-Instruct-2507` first, labeled "(Recommended)", then the remaining catalog ids.
+
+If `--catalog` prints `STATE=NO_KEY` or `STATE=UNREACHABLE` (or any state other than `CATALOG`), skip the questions and just run the normal flow below; the existing STATE handling already explains those cases. If the user DID pass model arguments, skip the catalog step and the questions entirely and run the normal flow with the arguments as given.
 
 Run:
 
