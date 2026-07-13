@@ -46,6 +46,10 @@ The first `/hearth:on` snapshots the prior values of the settings keys it manage
 
 Keys are stored per node hostname in the Keychain (service `hearth-node`, account set to the host), so one machine can hold keys for several nodes at once. Switch between them with `/hearth:on <other-url>`, and the `apiKeyHelper` picks the right key from whichever `ANTHROPIC_BASE_URL` the session points at.
 
+## Troubleshooting
+
+A node answers `/v1/models` with the models the caller's virtual key is scoped to, not its full catalog. If the `/model` picker or `/hearth:models` shows only a single wildcard entry like `nebius/*`, the key was issued with a wildcard scope: ask the node operator to re-scope it to concrete model ids (keys issued by the current `issue-key.sh` in the `hearthchain/miner` repo already are), then restart the session and the catalog appears in the `/model` picker under "From gateway". In the meantime, switching by typing the full id directly, e.g. `/model nebius/Qwen/Qwen3-30B-A3B-Instruct-2507`, works even when the picker does not list it.
+
 ## Requirements
 
 macOS (for the Keychain), `jq`, and a recent Claude Code with plugin support.
