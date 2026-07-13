@@ -1,0 +1,13 @@
+{
+  "name": "hearthchain",
+  "owner": {
+    "name": "Hearth"
+  },
+  "plugins": [
+    {
+      "name": "hearth",
+      "source": "./plugins/hearth",
+      "description": "Use a Hearth execution node from Claude Code: one-command install, model catalog, node status"
+    }
+  ]
+}
