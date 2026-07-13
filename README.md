@@ -50,6 +50,8 @@ Keys are stored per node hostname in the Keychain (service `hearth-node`, accoun
 
 A node answers `/v1/models` with the models the caller's virtual key is scoped to, not its full catalog. If the `/model` picker or `/hearth:models` shows only a single wildcard entry like `nebius/*`, the key was issued with a wildcard scope: ask the node operator to re-scope it to concrete model ids (keys issued by the current `issue-key.sh` in the `hearthchain/miner` repo already are), then restart the session and the catalog appears in the `/model` picker under "From gateway". In the meantime, switching by typing the full id directly, e.g. `/model nebius/Qwen/Qwen3-30B-A3B-Instruct-2507`, works even when the picker does not list it.
 
+If the Keychain key disappears while Hearth sessions are running (deleted or renamed), the failure is confusing rather than explicit: chat replies may keep working for a while on a cached credential, but new API calls, including the permission classifier behind Bash approvals in auto mode, start failing with "model is temporarily unavailable" style errors. Put a key back into the Keychain with `security add-generic-password -U -s hearth-node -a <node-host> -w '<key>'` and restart the session.
+
 ## Requirements
 
 macOS (for the Keychain), `jq`, and a recent Claude Code with plugin support.
