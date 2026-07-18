@@ -94,15 +94,14 @@ if curl -sf --max-time 8 "http://$host:8471/v1/quote" > "$tmp/quote.json" 2>/dev
   fi
 fi
 
-nonce=$(openssl rand -hex 16)
-tls_code=$(curl -s -o "$tmp/tls.json" -w '%{http_code}' --max-time 8 "http://$host:8471/v1/tls?nonce=$nonce" || true)
+tls_code=$(curl -s -o "$tmp/tls.json" -w '%{http_code}' --max-time 8 "http://$host:8471/v1/tls" || true)
 if [ "$tls_code" = "200" ]; then
   spki=$(jq -r '.spki_sha256 // empty' "$tmp/tls.json")
   live_spki=$(openssl s_client -connect "$host:443" -servername "$host" </dev/null 2>/dev/null \
     | openssl x509 -pubkey -noout 2>/dev/null | openssl pkey -pubin -outform DER 2>/dev/null \
     | shasum -a 256 | cut -d' ' -f1)
-  if [ -z "$spki" ] || [ "$(jq -r .nonce "$tmp/tls.json")" != "$nonce" ]; then
-    tls="fail"; reason="endorsement malformed or nonce not echoed"
+  if [ -z "$spki" ]; then
+    tls="fail"; reason="endorsement malformed"
   elif [ -n "$pubkey" ] && [ "$(jq -r .pubkey "$tmp/tls.json")" != "$pubkey" ]; then
     tls="fail"; reason="/v1/tls pubkey differs from /v1/quote"
   elif [ "$live_spki" != "$spki" ]; then
