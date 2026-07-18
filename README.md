@@ -23,11 +23,11 @@ The command checks that the node answers on `/v1/models`, then asks you to place
 security add-generic-password -U -s hearth-node -a <node-host> -w '<your-virtual-key>'
 ```
 
-Once the key is present, re-run `/hearth:on <node-url>`. When you do not name models on the command line, it reads the node's catalog and offers an interactive choice of the main model and the background model, each with a recommended default first, so you can just accept the defaults or pick from the list. It then installs an `apiKeyHelper` at `~/.hearth/apikey.sh` that reads the key back from the Keychain, and merges the provider env block (`ANTHROPIC_BASE_URL`, `ANTHROPIC_MODEL`, `ANTHROPIC_SMALL_FAST_MODEL`, gateway model discovery) into `~/.claude/settings.json`. Restart your Claude Code sessions afterwards, since the env is read at startup.
+Once the key is present, re-run `/hearth:on <node-url>`. When you do not name models on the command line, it reads the node's catalog and offers an interactive choice of the main model and the background model, each with a recommended default first, so you can just accept the defaults or pick from the list. It then installs an `apiKeyHelper` at `~/.hearth/apikey.sh` that reads the key back from the Keychain, installs the Hearth status line at `~/.hearth/statusline.sh`, and merges the provider env block (`ANTHROPIC_BASE_URL`, `ANTHROPIC_MODEL`, `ANTHROPIC_SMALL_FAST_MODEL`, gateway model discovery) into `~/.claude/settings.json`. Restart your Claude Code sessions afterwards, since the env is read at startup.
 
 After this, the machine's default `claude` routes through the Hearth node. To undo, run `/hearth:off`.
 
-The first `/hearth:on` snapshots the prior values of the settings keys it manages (`apiKeyHelper`, `model`, and the `ANTHROPIC_*` and gateway-discovery env keys) to `~/.hearth/pre-hearth-settings.json`; re-running `/hearth:on` to switch nodes or models never overwrites that snapshot. It also removes any top-level `model` setting for the Hearth period, since that would override `ANTHROPIC_MODEL`. `/hearth:off` restores the snapshot (including `model`) and removes it, while the Keychain key and `~/.hearth/apikey.sh` stay in place, so `/hearth:on` re-enables instantly. The round trip: your regular Anthropic model before, the node's models while on (switch among them with `/model`), and your exact previous setup back after `/hearth:off` plus a session restart.
+The first `/hearth:on` snapshots the prior values of the settings keys it manages (`apiKeyHelper`, `model`, `statusLine`, and the `ANTHROPIC_*` and gateway-discovery env keys) to `~/.hearth/pre-hearth-settings.json`; re-running `/hearth:on` to switch nodes or models never overwrites that snapshot. It also removes any top-level `model` setting for the Hearth period, since that would override `ANTHROPIC_MODEL`. `/hearth:off` restores the snapshot (including `model` and any status line you already had) and removes it, while the Keychain key and `~/.hearth/apikey.sh` stay in place, so `/hearth:on` re-enables instantly. The round trip: your regular Anthropic model before, the node's models while on (switch among them with `/model`), and your exact previous setup back after `/hearth:off` plus a session restart.
 
 ## Commands
 
@@ -36,7 +36,7 @@ The first `/hearth:on` snapshots the prior values of the settings keys it manage
 | `/hearth:on [--session] [node-url] [main-model] [fast-model]` | Wire this machine to a node, or switch to a different node by passing its URL. When a key is already present and you name no models, it offers an interactive pick of the main and background model from the node's catalog. With `--session`, only prepare per-session use. |
 | `/hearth:off` | Switch back to the pre-Hearth setup from the snapshot. The Keychain key stays, so `/hearth:on` re-enables instantly. |
 | `/hearth:models` | List the node's model catalog. With gateway model discovery enabled the same catalog also appears in the `/model` picker, labeled "From gateway", after a session restart. |
-| `/hearth:status` | Report gateway health, the key's spend against its budget, the enclave identity pubkey, and whether the VM attestation endpoint is reachable. |
+| `/hearth:status` | Report gateway health, the key's spend against its budget, the node's verification verdict (`quote`, `dcap`, `tls`, `signature`, `overall`) from `verify.json`, and whether the VM attestation endpoint is reachable. |
 
 ## Session scope
 
@@ -59,3 +59,11 @@ macOS (for the Keychain), `jq`, and a recent Claude Code with plugin support.
 ## What the node proves
 
 The reference node runs inside a SecretVM Intel TDX confidential VM. Its attestation, the TDX quote together with the measured workload definition, is served on port 29343 of the node host, so a client can verify what code the enclave is running before trusting it. The execution node itself lives in the `hearthchain/miner` repo.
+
+## Verifying the node
+
+Turning Hearth on installs a status line and a `SessionStart` hook, so every session pointed at a Hearth node checks it and shows the result. The hook runs `verify.sh --hook`: with a cached verdict fresher than 15 minutes it returns instantly, otherwise it kicks a background refresh and returns at once, so session start never blocks on the network. Either way it writes the verdict to `~/.hearth/verify.json` and prints one context line. The full check runs four steps, each degrading on its own rather than failing the whole run: `quote` (the `report_data[0:32]` bound in the DCAP quote from `:8471/v1/quote` equals the served pubkey), `dcap` (Intel signature and TCB via `secretvm-cli`, skipped when the CLI is absent), `tls` (the enclave key's `/v1/tls` endorsement SPKI equals the certificate the public `:443` actually presents, and is `unavailable` until the node ships `/v1/tls`), and `signature` (the Ed25519 endorsement check, which needs OpenSSL 3, e.g. `brew install openssl@3`, and is skipped otherwise). The `overall` verdict is `ok` when nothing failed or was skipped, `partial` when a check was skipped or `/v1/tls` is not yet deployed, and `fail` on a hard mismatch, which should be treated as a possible man-in-the-middle until proven otherwise.
+
+The status line reads that cached verdict and shows the fire emoji, `Hearth`, a verdict glyph (`✔` ok, `◐` partial with the skipped or failing checks named, `✖` fail with the reason), the node host, and the current model. `/hearth:on` installs it as `~/.hearth/statusline.sh`; any status line you already had is snapshotted and put back by `/hearth:off`. `/hearth:status` reports the same verdict from `verify.json`.
+
+This verifies the node and its TLS binding at check time. Pinning the endorsed certificate on every request, through a local pinning proxy, is a planned second stage.

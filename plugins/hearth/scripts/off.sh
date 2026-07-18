@@ -24,6 +24,7 @@ fi
 [ -f "$settings" ] || printf '{}\n' > "$settings"
 
 jq 'del(.apiKeyHelper, .model)
+    | (if (.statusLine.command // "") | endswith("/.hearth/statusline.sh") then del(.statusLine) else . end)
     | .env = ((.env // {})
         | del(.ANTHROPIC_BASE_URL, .ANTHROPIC_MODEL, .ANTHROPIC_SMALL_FAST_MODEL,
               .CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY))' \
@@ -34,6 +35,7 @@ if [ -f "$snapshot" ]; then
      '($saved[0]) as $s
       | (if $s.apiKeyHelper != null then .apiKeyHelper = $s.apiKeyHelper else . end)
       | (if $s.model != null then .model = $s.model else . end)
+      | (if $s.statusLine != null then .statusLine = $s.statusLine else . end)
       | .env = (.env + ($s.env // {}))' \
     "$settings.tmp" > "$settings.tmp2"
   mv "$settings.tmp2" "$settings.tmp"

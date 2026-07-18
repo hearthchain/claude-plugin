@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# Status line for Hearth sessions: model, node host, and the cached verification
+# verdict from verify.sh (~/.hearth/verify.json). Claude Code pipes session JSON
+# on stdin; we take the model display name from it and stay silent about Hearth
+# when the session does not point at a Hearth node.
+#
+# Verdict glyphs: ✔ ok (attested + TLS pinned + signature), ◐ partial (some
+# check skipped or /v1/tls not deployed), ✖ fail (mismatch: treat as MITM until
+# proven otherwise), … no verdict yet.
+set -uo pipefail
+
+input=$(cat 2>/dev/null || true)
+model=$(jq -r '.model.display_name // .model.id // empty' <<<"$input" 2>/dev/null || true)
+
+url="${ANTHROPIC_BASE_URL:-}"
+host=$(printf '%s' "$url" | sed -E 's#^[a-z]+://##; s#[/:].*$##')
+
+if [ -z "$host" ]; then
+  printf '%s' "${model:-}"
+  exit 0
+fi
+
+verdict="…" detail=""
+out="$HOME/.hearth/verify.json"
+if [ -f "$out" ] && [ "$(jq -r .host "$out" 2>/dev/null)" = "$host" ]; then
+  overall=$(jq -r .overall "$out")
+  case "$overall" in
+    ok) verdict="✔" detail="attested, TLS pinned" ;;
+    partial) verdict="◐" detail=$(jq -r '[
+        {quote, dcap, tls, signature} | to_entries[] | select(.value != "ok") | "\(.key) \(.value)"
+      ] | join(", ")' "$out") ;;
+    fail) verdict="✖" detail=$(jq -r '.reason // "verification failed"' "$out") ;;
+  esac
+  # Nudge a background refresh when the verdict has gone stale.
+  age=$(( $(date +%s) - $(jq -r '.checked_epoch // 0' "$out") ))
+  [ "$age" -lt 900 ] || ANTHROPIC_BASE_URL="$url" "$(dirname "$0")/verify.sh" --hook >/dev/null 2>&1 || true
+else
+  ANTHROPIC_BASE_URL="$url" "$(dirname "$0")/verify.sh" --hook >/dev/null 2>&1 || true
+fi
+
+printf '🔥 Hearth %s %s%s%s' "$verdict" "$host" "${model:+ · }" "${model:-}"
+[ -z "$detail" ] || printf ' (%s)' "$detail"

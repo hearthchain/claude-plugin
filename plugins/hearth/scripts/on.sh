@@ -76,16 +76,21 @@ if ! security find-generic-password -s hearth-node -a "$host" >/dev/null 2>&1; t
 fi
 
 mkdir -p "$HOME/.hearth"
-cp "$(cd "$(dirname "$0")" && pwd)/apikey.sh" "$HOME/.hearth/apikey.sh"
-chmod +x "$HOME/.hearth/apikey.sh"
+script_dir=$(cd "$(dirname "$0")" && pwd)
+for helper in apikey.sh verify.sh statusline.sh; do
+  cp "$script_dir/$helper" "$HOME/.hearth/$helper"
+  chmod +x "$HOME/.hearth/$helper"
+done
 
 # Session-scoped provider block. It carries its own "model": a user-scope
 # model setting would otherwise override ANTHROPIC_MODEL and ask the node for
 # an Anthropic model id it does not serve.
 jq -n --arg url "$url" --arg helper "$HOME/.hearth/apikey.sh" \
+      --arg statusline "$HOME/.hearth/statusline.sh" \
       --arg main "$main_model" --arg fast "$fast_model" \
    '{apiKeyHelper: $helper,
      model: $main,
+     statusLine: {type: "command", command: $statusline, refreshInterval: 30},
      env: {
        ANTHROPIC_BASE_URL: $url,
        ANTHROPIC_MODEL: $main,
@@ -112,19 +117,26 @@ snapshot="$HOME/.hearth/pre-hearth-settings.json"
 if [ ! -f "$snapshot" ]; then
   jq '{apiKeyHelper: (.apiKeyHelper // null),
        model: (.model // null),
+       statusLine: (.statusLine // null),
        env: ((.env // {}) | with_entries(select(.key | IN(
          "ANTHROPIC_BASE_URL", "ANTHROPIC_MODEL", "ANTHROPIC_SMALL_FAST_MODEL",
          "CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY"))))}' \
     "$settings" > "$snapshot"
+elif ! jq -e 'has("statusLine")' "$snapshot" >/dev/null; then
+  # Snapshot from a pre-statusLine plugin version: capture the user's current status line before we overwrite it.
+  jq --slurpfile cur "$settings" '.statusLine = ($cur[0].statusLine // null)' "$snapshot" > "$snapshot.tmp"
+  mv "$snapshot.tmp" "$snapshot"
 fi
 
 # A top-level "model" in settings.json silently overrides ANTHROPIC_MODEL, so
 # sessions would keep asking the node for the old (Anthropic) model id; drop it
 # while Hearth is on and let off.sh restore it from the snapshot.
 jq --arg url "$url" --arg helper "$HOME/.hearth/apikey.sh" \
+   --arg statusline "$HOME/.hearth/statusline.sh" \
    --arg main "$main_model" --arg fast "$fast_model" \
    '.apiKeyHelper = $helper
     | del(.model)
+    | .statusLine = {type: "command", command: $statusline, refreshInterval: 30}
     | .env = (.env // {}) + {
         ANTHROPIC_BASE_URL: $url,
         ANTHROPIC_MODEL: $main,
