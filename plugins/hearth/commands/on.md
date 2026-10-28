@@ -17,8 +17,8 @@ Node URL: use `$ARGUMENTS` if given; default is `https://moccasin-canidae.vm.scr
 
 Model picker: if the user did NOT pass `[main-model]` and `[fast-model]` arguments, offer an interactive choice before switching. First run `bash ${CLAUDE_PLUGIN_ROOT}/scripts/on.sh --catalog <node-url>` (this changes nothing on the machine; it only lists the node's models). If it prints `STATE=CATALOG` with two or more `MODEL=` lines, use AskUserQuestion twice, then continue with the chosen ids as the `[main-model] [fast-model]` arguments in the normal run below:
 
-- First question, the main model: offer at most four options. Put `nebius/moonshotai/Kimi-K2.7-Code` first, labeled "(Recommended)", then fill the remaining option slots with other catalog ids from the `MODEL=` lines. The built-in "Other" choice lets the user type any id, so mention that upstream ids matching a wildcard scope also work.
-- Second question, the fast/background model: same shape, but put `nebius/Qwen/Qwen3-30B-A3B-Instruct-2507` first, labeled "(Recommended)", then the remaining catalog ids.
+- First question, the main model: offer at most four options. Put `chutes/zai-org/GLM-5.2-TEE` first, labeled "(Recommended)", then fill the remaining option slots with other catalog ids from the `MODEL=` lines. The built-in "Other" choice lets the user type any id, so mention that upstream ids matching a wildcard scope also work.
+- Second question, the fast/background model: same shape, but put `chutes/Qwen/Qwen3.8-27B-TEE` first, labeled "(Recommended)", then the remaining catalog ids.
 
 If `--catalog` prints `STATE=NO_KEY` or `STATE=UNREACHABLE` (or any state other than `CATALOG`), skip the questions and just run the normal flow below; the existing STATE handling already explains those cases. If the user DID pass model arguments, skip the catalog step and the questions entirely and run the normal flow with the arguments as given.
 
