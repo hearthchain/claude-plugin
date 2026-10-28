@@ -27,8 +27,8 @@ esac
 
 url=${1:-https://moccasin-canidae.vm.scrtlabs.com}
 url=${url%/}
-main_model=${2:-nebius/moonshotai/Kimi-K2.7-Code}
-fast_model=${3:-nebius/Qwen/Qwen3-30B-A3B-Instruct-2507}
+main_model=${2:-chutes/zai-org/GLM-5.2-TEE}
+fast_model=${3:-chutes/Qwen/Qwen3.8-27B-TEE}
 host=$(printf '%s' "$url" | sed -E 's#^[a-z]+://##; s#[/:].*$##')
 
 # Expected onboarding states exit 0 with a STATE= marker so the harness does
