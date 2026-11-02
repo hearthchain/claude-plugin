@@ -15,7 +15,7 @@ A Claude Code plugin for using a Hearth execution node as the model provider. A 
 
 ## Setup
 
-Ask the node operator for a virtual key, then run `/hearth:on <node-url>`. With no argument it targets the default node `https://moccasin-canidae.vm.scrtlabs.com`.
+Ask the node operator for a virtual key and the node URL, then run `/hearth:on <node-url>`. There is no default node; the URL comes with the key.
 
 The command checks that the node answers on `/v1/models`, then asks you to place your key into the macOS Keychain yourself. You run one `security add-generic-password` line in your own terminal, so the key never enters the chat:
 
@@ -58,4 +58,4 @@ macOS (for the Keychain), `jq`, and a recent Claude Code with plugin support.
 
 ## What the node proves
 
-The reference node runs inside a SecretVM Intel TDX confidential VM. Its attestation, the TDX quote together with the measured workload definition, is served on port 29343 of the node host, so a client can verify what code the enclave is running before trusting it. The execution node itself lives in the `hearthchain/miner` repo.
+The reference node runs inside an Intel TDX confidential VM on a dstack host (Phala Cloud). Its attestation, the TDX quote with the boot event log that binds the measured compose and the enclave key, is served by the node itself at `/v1/quote`, so a client can verify what code the enclave is running before trusting it. The execution node lives in the `hearthchain/miner` repo; its `scripts/verify-node.sh` runs the full check.

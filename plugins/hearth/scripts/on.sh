@@ -15,7 +15,7 @@
 # key, fetches /v1/models, and prints STATE=CATALOG plus one MODEL= line per
 # concrete id (wildcard ids skipped), so the command can offer a model picker.
 #
-# Usage: on.sh [--session | --catalog] [node-url] [main-model] [fast-model]
+# Usage: on.sh [--session | --catalog] <node-url> [main-model] [fast-model]
 set -euo pipefail
 
 session_only=0
@@ -25,7 +25,8 @@ case "${1:-}" in
   --catalog) catalog_only=1; shift ;;
 esac
 
-url=${1:-https://moccasin-canidae.vm.scrtlabs.com}
+url=${1:-}
+[ -n "$url" ] || { echo "STATE=NO_URL"; exit 0; }
 url=${url%/}
 main_model=${2:-nebius/moonshotai/Kimi-K2.7-Code}
 fast_model=${3:-nebius/Qwen/Qwen3-30B-A3B-Instruct-2507}
