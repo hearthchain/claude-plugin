@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Verify the Hearth node and cache the verdict in ~/.hearth/verify.json.
-# Checks: quote (report_data binds pubkey), dcap (secretvm-cli), tls (/v1/tls
+# Checks: quote (report_data[32:64] binds pubkey), dcap (platform DCAP verifier), tls (/v1/tls
 # SPKI vs live :443 cert), signature (Ed25519, needs OpenSSL 3).
 # overall: ok | partial (something skipped) | fail (mismatch, possible MITM).
 #
@@ -14,6 +14,7 @@ out="$hearth_dir/verify.json"
 lock="$hearth_dir/verify.lock"
 fresh_secs=900
 rd_offset=568 # report_data offset in the TDX v4 quote (TD10 body offset 520)
+pk_offset=$((rd_offset + 32)) # enclave pubkey; report_data[0:32] carries the block id the chain binds
 
 url="${ANTHROPIC_BASE_URL:-}"
 host=$(printf '%s' "$url" | sed -E 's#^[a-z]+://##; s#[/:].*$##')
@@ -67,18 +68,21 @@ gateway="down" quote="unreachable" dcap="skipped" tls="unavailable" signature="s
 code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 8 "$url/v1/models" || true)
 case "$code" in 200|401) gateway="up" ;; esac
 
-if curl -sf --max-time 8 "http://$host:8471/v1/quote" > "$tmp/quote.json" 2>/dev/null; then
+if curl -sf --max-time 8 "$url/v1/quote" > "$tmp/quote.json" 2>/dev/null; then
   pubkey=$(jq -r '.pubkey // empty' "$tmp/quote.json")
   jq -r '.quote // empty' "$tmp/quote.json" | base64 -d 2>/dev/null | xxd -p -c 256 | tr -d '\n' > "$tmp/quote.hex" || true
-  report_data=$(cut -c $((rd_offset * 2 + 1))-$(((rd_offset + 32) * 2)) "$tmp/quote.hex" 2>/dev/null || true)
+  report_data=$(cut -c $((pk_offset * 2 + 1))-$(((pk_offset + 32) * 2)) "$tmp/quote.hex" 2>/dev/null || true)
   if [ -n "$pubkey" ] && [ "$report_data" = "$pubkey" ]; then
     quote="ok"
   elif [ -n "$pubkey" ]; then
     quote="fail"; reason="report_data does not bind the served pubkey"
   fi
-  if [ "$quote" = "ok" ] && command -v secretvm-cli >/dev/null; then
-    verdict=$(secretvm-cli verify quote --quote-file "$tmp/quote.hex" --attestation-type tdx 2>/dev/null || true)
-    case "$(jq -r 'if .result.ok == true and .result.status.result == "0" then "ok" else "fail" end' <<<"$verdict" 2>/dev/null || echo err)" in
+  # DCAP signature chain and TCB through the hosting platform's verifier; unreachable stays "skipped", never "ok".
+  if [ "$quote" = "ok" ]; then
+    verdict=$(jq -n --rawfile h "$tmp/quote.hex" '{hex: ($h | rtrimstr("\n"))}' \
+      | curl -sf --max-time 60 -X POST https://cloud-api.phala.com/api/v1/attestations/verify \
+          -H 'Content-Type: application/json' -d @- 2>/dev/null || true)
+    case "$(jq -r 'if .quote.verified == true then "ok" else "fail" end' <<<"$verdict" 2>/dev/null || echo err)" in
       ok) dcap="ok" ;;
       fail) dcap="fail"; reason="DCAP verdict not OK" ;;
       *) dcap="skipped" ;;
@@ -86,7 +90,7 @@ if curl -sf --max-time 8 "http://$host:8471/v1/quote" > "$tmp/quote.json" 2>/dev
   fi
 fi
 
-tls_code=$(curl -s -o "$tmp/tls.json" -w '%{http_code}' --max-time 8 "http://$host:8471/v1/tls" || true)
+tls_code=$(curl -s -o "$tmp/tls.json" -w '%{http_code}' --max-time 8 "$url/v1/tls" || true)
 if [ "$tls_code" = "200" ]; then
   spki=$(jq -r '.spki_sha256 // empty' "$tmp/tls.json")
   live_spki=$(openssl s_client -connect "$host:443" -servername "$host" </dev/null 2>/dev/null \

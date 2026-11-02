@@ -1,6 +1,6 @@
 ---
 description: Route Claude Code through a Hearth node, machine-wide or per session (Keychain key, apiKeyHelper, settings.json)
-argument-hint: "[--session] [node-url] [main-model] [fast-model]"
+argument-hint: "[--session] <node-url> [main-model] [fast-model]"
 allowed-tools: ["Bash", "AskUserQuestion"]
 ---
 
@@ -13,7 +13,7 @@ Two scopes:
 
 A running session cannot change its provider (the provider env is read at startup), so never promise that THIS session will switch; a new session or a restart is always required.
 
-Node URL: use `$ARGUMENTS` if given; default is `https://moccasin-canidae.vm.scrtlabs.com`. Any other Hearth miner works the same way, that is the point of the argument.
+Node URL: the first non-flag argument, required. There is no default node; the operator who issued the key names it. If the user gave none, ask for it before running anything. Any Hearth miner works the same way, that is the point of the argument.
 
 Model picker: if the user did NOT pass `[main-model]` and `[fast-model]` arguments, offer an interactive choice before switching. First run `bash ${CLAUDE_PLUGIN_ROOT}/scripts/on.sh --catalog <node-url>` (this changes nothing on the machine; it only lists the node's models). If it prints `STATE=CATALOG` with two or more `MODEL=` lines, use AskUserQuestion twice, then continue with the chosen ids as the `[main-model] [fast-model]` arguments in the normal run below:
 
@@ -36,6 +36,7 @@ The script prints a `STATE=` marker. Reply warm and short, never dumping raw scr
 - `STATE=UNREACHABLE`: the node at URL did not answer (HTTP code in HTTP=). Suggest checking the URL spelling or asking the node operator; mention they can pass another node URL as an argument.
 - `STATE=NOT_MACOS`: only macOS Keychain is supported so far; suggest asking the node operator about manual setup (env vars ANTHROPIC_BASE_URL / ANTHROPIC_AUTH_TOKEN).
 - `STATE=NO_JQ`: ask them to `brew install jq` and re-run.
+- `STATE=NO_URL`: no node URL was given; ask for it (the node operator provides it with the key) and re-run with the URL.
 
 ALWAYS end the reply with a short "way back" hint, whatever the state:
 
